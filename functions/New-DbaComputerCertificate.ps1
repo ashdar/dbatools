@@ -16,6 +16,7 @@ References:
 http://sqlmag.com/sql-server/7-steps-ssl-encryption
 https://azurebi.jppp.org/2016/01/23/using-lets-encrypt-certificates-for-secure-sql-server-connections/
 https://blogs.msdn.microsoft.com/sqlserverfaq/2016/09/26/creating-and-registering-ssl-certificates/
+https://technet.microsoft.com/da-dk/library/ms189067(v=sql.100).aspx
 
 The certificate is generated using AD's webserver SSL template on the client machine and pushed to the remote machine.
 
