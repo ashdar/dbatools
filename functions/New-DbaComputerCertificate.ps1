@@ -226,7 +226,7 @@ Creates a self-signed certificate
 				}
 				else {
 					
-					$resolved = Resolve-DbaNetworkName -ComputerName $computer.ComputerName -Turbo -WarningAction SilentlyContinue
+					$resolved = Resolve-DbaNetworkName -ComputerName $computer.ComputerName -WarningAction SilentlyContinue
 					
 					if (!$resolved) {
 						$fqdn = "$ComputerName.$env:USERDNSDOMAIN"
