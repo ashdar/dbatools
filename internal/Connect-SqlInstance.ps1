@@ -23,7 +23,10 @@
         .PARAMETER RegularUser
             The connection doesn't require SA privileges.
             By default, the assumption is that SA is required.
-        
+    
+        .PARAMETER MinimumVersion
+           The minimum version that the calling command will support
+	
         .EXAMPLE
             Connect-SqlInstance -SqlInstance sql2014
     
@@ -32,18 +35,12 @@
     
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [Object]
-        $SqlInstance,
-        
-        [object]
-        $SqlCredential,
-        
-        [switch]
-        $ParameterConnection,
-        
-        [switch]
-        $RegularUser
+		[Parameter(Mandatory = $true)]
+		[Object]$SqlInstance,
+		[object]$SqlCredential,
+		[switch]$ParameterConnection,
+		[switch]$RegularUser = $true, # let's see how this goes
+		[int]$MinimumVersion
     )
     
     
@@ -111,9 +108,15 @@
             
             $paramserver.ConnectionContext.Connect()
             return $paramserver
-        }
-        
-        if ($server.ConnectionContext.IsOpen -eq $false) {
+		}
+		
+		if ($MinimumVersion) {
+			if ($server.versionMajor -lt $MinimumVersion) {
+				throw "SQL Server version $MinimumVersion required - $server not supported."
+			}
+		}
+		
+		if ($server.ConnectionContext.IsOpen -eq $false) {
             $server.ConnectionContext.Connect()
         }
 		
@@ -141,20 +144,14 @@
     # This seems a little complex but is required because some connections do TCP,SqlInstance
     $server = New-Object Microsoft.SqlServer.Management.Smo.Server $ConvertedSqlInstance.FullSmoName
     $server.ConnectionContext.ApplicationName = "dbatools PowerShell module - dbatools.io"
-    
-    <#
-	 Just realized this will not work because it's SMO ;) We will return to if this is still needed and how to handle it in 1.0.
 	
-	if ($server.Configuration.SmoAndDmoXPsEnabled.RunValue -eq 0)
-    {
-        Write-Error "Accessing this server via SQL Management Objects (SMO) or Distributed Management Objects (DMO) is currently not permitted.
-                     Enable the option 'SMO and DMO XPs' on your instance using sp_configure to continue.
-                     Note that this will require 'Show Advanced Options' to be enabled using sp_configure as well."
-        break
-    }
-	#>
-    
-    try {
+	if ($MinimumVersion) {
+		if ($server.versionMajor -lt $MinimumVersion) {
+			throw "SQL Server version $MinimumVersion required - $server not supported."
+		}
+	}
+	
+	try {
         if ($SqlCredential.username -ne $null) {
             $username = ($SqlCredential.username).TrimStart("\")
             
