@@ -75,6 +75,11 @@ namespace Sqlcollaborative.Dbatools.Database
         public string Type;
 
         /// <summary>
+        /// The recovery model of the database at the time of the backup
+        /// </summary>
+        public string RecoveryModel;
+
+        /// <summary>
         /// The ID for the Backup job
         /// </summary>
         public string BackupSetId;
