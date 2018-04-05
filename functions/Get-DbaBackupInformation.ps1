@@ -172,7 +172,7 @@ function Get-DbaBackupInformation {
         }
 
         if ($true -eq $IgnoreLogBackup -and $true -ne $MaintenanceSolution) {
-            Write-Message -Message "IgnoreLogBackup can only by used with Maintenance Soultion. Will not be used" -Level Warning
+            Write-Message -Message "IgnoreLogBackup can only by used with Maintenance Solution. Will not be used" -Level Warning
         }
     }
     process {
@@ -290,6 +290,7 @@ function Get-DbaBackupInformation {
                 $historyObject.TotalSize = ($Group.Group.BackupSize | Measure-Object -sum).sum
                 $HistoryObject.CompressedBackupSize = ($Group.Group.CompressedBackupSize | Measure-Object -sum).sum
                 $historyObject.Type = $group.Group[0].BackupTypeDescription
+                $historyObject.RecoveryModel = $group.group[0].RecoveryModel
                 $historyObject.BackupSetId = $group.group[0].BackupSetGUID
                 $historyObject.DeviceType = 'Disk'
                 $historyObject.FullName = $Group.Group.BackupPath
