@@ -1,72 +1,77 @@
-function Install-DbaWhoIsActive {
-    <#
-        .SYNOPSIS
-            Automatically installs or updates sp_WhoisActive by Adam Machanic.
+﻿function Install-DbaWhoIsActive {
+<#
+    .SYNOPSIS
+        Automatically installs or updates sp_WhoisActive by Adam Machanic.
 
-        .DESCRIPTION
-            This command downloads, extracts and installs sp_WhoisActive with Adam's permission. To read more about sp_WhoisActive, please visit http://whoisactive.com and http://sqlblog.com/blogs/adam_machanic/archive/tags/who+is+active/default.aspx
+    .DESCRIPTION
+        This command downloads, extracts and installs sp_WhoisActive with Adam's permission. To read more about sp_WhoisActive, please visit http://whoisactive.com and http://sqlblog.com/blogs/adam_machanic/archive/tags/who+is+active/default.aspx
 
-            Please consider donating to Adam if you find this stored procedure helpful: http://tinyurl.com/WhoIsActiveDonate
+        Please consider donating to Adam if you find this stored procedure helpful: http://tinyurl.com/WhoIsActiveDonate
 
-            Note that you will be prompted a bunch of times to confirm an action.
+        Note that you will be prompted a bunch of times to confirm an action.
 
-        .PARAMETER SqlInstance
-            The SQL Server instance. Server version must be SQL Server version 2005 or higher.
+    .PARAMETER SqlInstance
+        The target SQL Server instance or instances. Server version must be SQL Server version 2005 or higher.
 
-        .PARAMETER SqlCredential
-            Login to the target instance using alternative credentials. Windows and SQL Authentication supported. Accepts credential objects (Get-Credential)
+    .PARAMETER SqlCredential
+        Login to the target instance using alternative credentials. Windows and SQL Authentication supported. Accepts credential objects (Get-Credential)
 
-        .PARAMETER Database
-            The database to install sp_WhoisActive into. This parameter is mandatory when executing this command unattended.
+    .PARAMETER Database
+        The database to install sp_WhoisActive into. This parameter is mandatory when executing this command unattended.
 
-        .PARAMETER LocalFile
-            Specifies the path to a local file to install sp_WhoisActive from. This can be either the zipfile as distributed by the website or the expanded SQL script. If this parameter is not specified, the latest version will be downloaded and installed from https://whoisactive.com/
+    .PARAMETER LocalFile
+        Specifies the path to a local file to install sp_WhoisActive from. This can be either the zipfile as distributed by the website or the expanded SQL script. If this parameter is not specified, the latest version will be downloaded and installed from https://whoisactive.com/
 
-        .PARAMETER WhatIf
-            If this switch is enabled, no actions are performed but informational messages will be displayed that explain what would happen if the command were to run.
+    .PARAMETER WhatIf
+        If this switch is enabled, no actions are performed but informational messages will be displayed that explain what would happen if the command were to run.
 
-        .PARAMETER Confirm
-            If this switch is enabled, you will be prompted for confirmation before executing any operations that change state.
+    .PARAMETER Confirm
+        If this switch is enabled, you will be prompted for confirmation before executing any operations that change state.
 
-        .PARAMETER EnableException
-            By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
-            This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
-            Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
+    .PARAMETER Force
+        If this switch is enabled, the sp_WhoisActive will be downloaded from the internet even if previously cached.
 
-        .PARAMETER Force
-            If this switch is enabled, the sp_WhoisActive will be downloaded from the internet even if previously cached.
+    .PARAMETER EnableException
+        By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
+        This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
+        Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
 
-        .EXAMPLE
-            Install-DbaWhoIsActive -SqlInstance sqlserver2014a -Database master
+    .NOTES
+        Tags: AdamMechanic, WhoIsActive, SpWhoIsActive
+        Author: Chrissy LeMaire (@cl), netnerds.net
 
-            Downloads sp_WhoisActive from the internet and installs to sqlserver2014a's master database. Connects to SQL Server using Windows Authentication.
+        Website: https://dbatools.io
+        Copyright: (c) 2018 by dbatools, licensed under MIT
+        License: MIT https://opensource.org/licenses/MIT
 
-        .EXAMPLE
-            Install-DbaWhoIsActive -SqlInstance sqlserver2014a -SqlCredential $cred
+    .LINK
+        https://dbatools.io/Install-DbaWhoIsActive
 
-            Pops up a dialog box asking which database on sqlserver2014a you want to install the procedure into. Connects to SQL Server using SQL Authentication.
+    .EXAMPLE
+        PS C:\> Install-DbaWhoIsActive -SqlInstance sqlserver2014a -Database master
 
-        .EXAMPLE
-            Install-DbaWhoIsActive -SqlInstance sqlserver2014a -Database master -LocalFile c:\SQLAdmin\whoisactive_install.sql
+        Downloads sp_WhoisActive from the internet and installs to sqlserver2014a's master database. Connects to SQL Server using Windows Authentication.
 
-            Installs sp_WhoisActive to sqlserver2014a's master database from the local file whoisactive_install.sql
+    .EXAMPLE
+        PS C:\> Install-DbaWhoIsActive -SqlInstance sqlserver2014a -SqlCredential $cred
 
-        .EXAMPLE
-            $instances = Get-DbaRegisteredServer sqlserver
-            Install-DbaWhoIsActive -SqlInstance $instances -Database master
+        Pops up a dialog box asking which database on sqlserver2014a you want to install the procedure into. Connects to SQL Server using SQL Authentication.
 
-        .NOTES
-            Website: https://dbatools.io
-            Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
-            License: MIT https://opensource.org/licenses/MIT
+    .EXAMPLE
+        PS C:\> Install-DbaWhoIsActive -SqlInstance sqlserver2014a -Database master -LocalFile c:\SQLAdmin\whoisactive_install.sql
 
-        .LINK
-            https://dbatools.io/Install-DbaWhoIsActive
-    #>
+        Installs sp_WhoisActive to sqlserver2014a's master database from the local file whoisactive_install.sql
+
+    .EXAMPLE
+        PS C:\> $instances = Get-DbaCmsRegServer sqlserver
+        PS C:\> Install-DbaWhoIsActive -SqlInstance $instances -Database master
+
+        Installs sp_WhoisActive to all servers within CMS
+#>
 
     [CmdletBinding(SupportsShouldProcess)]
     param (
-        [parameter(Mandatory = $true, ValueFromPipeline = $true, Position = 0)]
+        [parameter(Mandatory, ValueFromPipeline, Position = 0)]
         [Alias("ServerInstance", "SqlServer")]
         [DbaInstanceParameter[]]$SqlInstance,
         [PsCredential]$SqlCredential,
@@ -80,7 +85,7 @@ function Install-DbaWhoIsActive {
     )
 
     begin {
-        $DbatoolsData = Get-DbaConfigValue -FullName "Path.DbatoolsData"
+        $DbatoolsData = Get-DbatoolsConfigValue -FullName "Path.DbatoolsData"
         $temp = ([System.IO.Path]::GetTempPath()).TrimEnd("\")
         $zipfile = "$temp\spwhoisactive.zip"
 
@@ -167,6 +172,17 @@ function Install-DbaWhoIsActive {
             $sql = [IO.File]::ReadAllText($sqlfile)
             $sql = $sql -replace 'USE master', ''
             $batches = $sql -split "GO\r\n"
+
+            $matchString = 'Who Is Active? v'
+
+            If ($sql  -like "*$matchString*"){
+                $posStart = $sql.IndexOf("$matchString")
+                $PosEnd = $sql.IndexOf(")", $PosStart)
+                $versionWhoIsActive = $sql.Substring($posStart+$matchString.Length, $posEnd - ($posStart + $matchString.Length)+ 1).TrimEnd()
+            }
+            Else {
+                $versionWhoIsActive = ''
+            }
         }
     }
 
@@ -175,7 +191,6 @@ function Install-DbaWhoIsActive {
 
         foreach ($instance in $SqlInstance) {
             try {
-                Write-Message -Level Verbose -Message "Connecting to $instance."
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $sqlcredential
             }
             catch {
@@ -217,12 +232,15 @@ function Install-DbaWhoIsActive {
                         else {
                             $status = 'Installed'
                         }
+
+
                         [PSCustomObject]@{
-                            ComputerName = $server.NetName
+                            ComputerName = $server.ComputerName
                             InstanceName = $server.ServiceName
                             SqlInstance  = $server.DomainInstanceName
                             Database     = $Database
                             Name         = 'sp_WhoisActive'
+                            Version      = $versionWhoIsActive
                             Status       = $status
                         }
                     }

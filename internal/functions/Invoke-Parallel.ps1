@@ -149,7 +149,7 @@ function Invoke-Parallel {
         https://github.com/RamblingCookieMonster/Invoke-Parallel
     #>
     [cmdletbinding(DefaultParameterSetName='ScriptBlock')]
-    Param (
+    param (
         [Parameter(Mandatory=$false,position=0,ParameterSetName='ScriptBlock')]
         [System.Management.Automation.ScriptBlock]$ScriptBlock,
 
@@ -407,7 +407,8 @@ function Invoke-Parallel {
             Write-Verbose "Creating runspace pool and session states"
 
             #If specified, add variables and modules/snapins to session state
-            $sessionstate = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+        $sessionstate = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
+        $sessionstate.Variables.Add((New-Object -TypeName System.Management.Automation.Runspaces.SessionStateVariableEntry -ArgumentList 'WarningPreference', 'SilentlyContinue', $null))
             if($ImportVariables -and $UserVariables.count -gt 0) {
                 foreach($Variable in $UserVariables) {
                     $sessionstate.Variables.Add((New-Object -TypeName System.Management.Automation.Runspaces.SessionStateVariableEntry -ArgumentList $Variable.Name, $Variable.Value, $null) )

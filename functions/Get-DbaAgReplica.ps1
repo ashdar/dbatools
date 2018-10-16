@@ -1,62 +1,62 @@
-function Get-DbaAgReplica {
-    <#
-        .SYNOPSIS
-            Outputs the Availability Group(s)' Replica object found on the server.
+﻿function Get-DbaAgReplica {
+<#
+    .SYNOPSIS
+        Outputs the Availability Group(s)' Replica object found on the server.
 
-        .DESCRIPTION
-            Default view provides most common set of properties for information on the Availability Group(s)' Replica.
+    .DESCRIPTION
+        Default view provides most common set of properties for information on the Availability Group(s)' Replica.
 
-        .PARAMETER SqlInstance
-            The SQL Server instance. Server version must be SQL Server version 2012 or higher.
+    .PARAMETER SqlInstance
+        The target SQL Server instance or instances. Server version must be SQL Server version 2012 or higher.
 
-        .PARAMETER SqlCredential
-            Allows you to login to servers using SQL Logins as opposed to Windows Auth/Integrated/Trusted.
+    .PARAMETER SqlCredential
+        Allows you to login to servers using SQL Logins as opposed to Windows Auth/Integrated/Trusted.
 
-        .PARAMETER AvailabilityGroup
-            Specify the Availability Group name that you want to get information on.
+    .PARAMETER AvailabilityGroup
+        Specify the Availability Group name that you want to get information on.
 
-        .PARAMETER Replica
-            Specify the replica to pull information on, is dependent up name that you want to get information on.
+    .PARAMETER Replica
+        Specify the replica to pull information on, is dependent up name that you want to get information on.
 
-        .PARAMETER EnableException
-            By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
-            This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
-            Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
+    .PARAMETER EnableException
+        By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
+        This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
+        Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
 
-        .NOTES
-            Tags: AG, AvailabilityGroup, Replica
-            Author: Shawn Melton (@wsmelton) | Chrissy LeMaire (@ctrlb)
+    .NOTES
+        Tags: AG, HA, AvailabilityGroup, Replica
+        Author: Shawn Melton (@wsmelton) | Chrissy LeMaire (@ctrlb)
 
-            Website: https://dbatools.io
-            Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
-            License: MIT https://opensource.org/licenses/MIT
+        Website: https://dbatools.io
+        Copyright: (c) 2018 by dbatools, licensed under MIT
+        License: MIT https://opensource.org/licenses/MIT
 
-        .LINK
-            https://dbatools.io/Get-DbaAgReplica
+    .LINK
+        https://dbatools.io/Get-DbaAgReplica
 
-        .EXAMPLE
-            Get-DbaAgReplica -SqlInstance sqlserver2014a
+    .EXAMPLE
+        PS C:\> Get-DbaAgReplica -SqlInstance sqlserver2014a
 
-            Returns basic information on all the Availability Group(s) replica(s) found on sqlserver2014a
+        Returns basic information on all the Availability Group(s) replica(s) found on sqlserver2014a
 
-        .EXAMPLE
-            Get-DbaAgReplica -SqlInstance sqlserver2014a -AvailabilityGroup AG-a
+    .EXAMPLE
+        PS C:\> Get-DbaAgReplica -SqlInstance sqlserver2014a -AvailabilityGroup AG-a
 
-            Shows basic information on the replica(s) found on Availability Group AG-a on sqlserver2014a
+        Shows basic information on the replica(s) found on Availability Group AG-a on sqlserver2014a
 
-        .EXAMPLE
-            Get-DbaAgReplica -SqlInstance sqlserver2014a | Select *
+    .EXAMPLE
+        Get-DbaAgReplica -SqlInstance sqlserver2014a | Select-Object *
 
-            Returns full object properties on all Availability Group(s) replica(s) on sqlserver2014a
-    #>
+        PS C:\> Returns full object properties on all Availability Group(s) replica(s) on sqlserver2014a
+
+#>
     [CmdletBinding()]
     param (
-        [parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [parameter(Mandatory, ValueFromPipeline)]
         [Alias("ServerInstance", "SqlServer")]
         [DbaInstanceParameter[]]$SqlInstance,
-        [PSCredential][System.Management.Automation.CredentialAttribute()]
-        $SqlCredential,
-        [parameter(ValueFromPipeline = $true)]
+        [PSCredential]$SqlCredential,
+        [parameter(ValueFromPipeline)]
         [object[]]$AvailabilityGroup,
         [object[]]$Replica,
         [Alias('Silent')]
@@ -88,7 +88,7 @@ function Get-DbaAgReplica {
                         continue
                     }
 
-                    Add-Member -Force -InputObject $currentReplica -MemberType NoteProperty -Name ComputerName -value $server.NetName
+                    Add-Member -Force -InputObject $currentReplica -MemberType NoteProperty -Name ComputerName -value $server.ComputerName
                     Add-Member -Force -InputObject $currentReplica -MemberType NoteProperty -Name InstanceName -value $server.ServiceName
                     Add-Member -Force -InputObject $currentReplica -MemberType NoteProperty -Name SqlInstance -value $server.DomainInstanceName
 

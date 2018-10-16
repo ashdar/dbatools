@@ -1,83 +1,84 @@
 ﻿function Get-DbaWaitStatistic {
-    <#
-        .SYNOPSIS
-            Displays wait statistics
+<#
+    .SYNOPSIS
+        Displays wait statistics
 
-        .DESCRIPTION
-            This command is based off of Paul Randal's post "Wait statistics, or please tell me where it hurts"
+    .DESCRIPTION
+        This command is based off of Paul Randal's post "Wait statistics, or please tell me where it hurts"
 
-            Returns:
-                        WaitType
-                        Category
-                        WaitSeconds
-                        ResourceSeconds
-                        SignalSeconds
-                        WaitCount
-                        Percentage
-                        AverageWaitSeconds
-                        AverageResourceSeconds
-                        AverageSignalSeconds
-                        URL
+        Returns:
+        WaitType
+        Category
+        WaitSeconds
+        ResourceSeconds
+        SignalSeconds
+        WaitCount
+        Percentage
+        AverageWaitSeconds
+        AverageResourceSeconds
+        AverageSignalSeconds
+        URL
 
-            Reference: https://www.sqlskills.com/blogs/paul/wait-statistics-or-please-tell-me-where-it-hurts/
+        Reference: https://www.sqlskills.com/blogs/paul/wait-statistics-or-please-tell-me-where-it-hurts/
 
-        .PARAMETER SqlInstance
-            The SQL Server instance. Server version must be SQL Server version 2005 or higher.
+    .PARAMETER SqlInstance
+        The target SQL Server instance or instances. Server version must be SQL Server version 2005 or higher.
 
-        .PARAMETER SqlCredential
-            Login to the target instance using alternative credentials. Windows and SQL Authentication supported. Accepts credential objects (Get-Credential)
+    .PARAMETER SqlCredential
+        Login to the target instance using alternative credentials. Windows and SQL Authentication supported. Accepts credential objects (Get-Credential)
 
-        .PARAMETER Threshold
-            Threshold, in percentage of all waits on the system. Default per Paul's post is 95%.
+    .PARAMETER Threshold
+        Threshold, in percentage of all waits on the system. Default per Paul's post is 95%.
 
-        .PARAMETER IncludeIgnorable
-            Some waits are no big deal and can be safely ignored in most circumstances. If you've got weird issues with mirroring or AGs.
+    .PARAMETER IncludeIgnorable
+        Some waits are no big deal and can be safely ignored in most circumstances. If you've got weird issues with mirroring or AGs.
 
-        .PARAMETER EnableException
-            By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
-            This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
-            Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
+    .PARAMETER EnableException
+        By default, when something goes wrong we try to catch it, interpret it and give you a friendly warning message.
+        This avoids overwhelming you with "sea of red" exceptions, but is inconvenient because it basically disables advanced scripting.
+        Using this switch turns this "nice by default" feature off and enables you to catch exceptions with your own try/catch.
 
-        .NOTES
-            Tags: WaitStatistic
-            Website: https://dbatools.io
-            Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
-            License: MIT https://opensource.org/licenses/MIT
+    .NOTES
+        Tags: WaitStatistic
+        Author: Chrissy LeMaire (@cl), netnerds.net
 
-        .LINK
-            https://dbatools.io/Get-DbaWaitStatistic
+        Website: https://dbatools.io
+        Copyright: (c) 2018 by dbatools, licensed under MIT
+        License: MIT https://opensource.org/licenses/MIT
 
-        .EXAMPLE
-            Get-DbaWaitStatistic -SqlInstance sql2008, sqlserver2012
+    .LINK
+        https://dbatools.io/Get-DbaWaitStatistic
 
-            Check wait statistics for servers sql2008 and sqlserver2012
+    .EXAMPLE
+        PS C:\> Get-DbaWaitStatistic -SqlInstance sql2008, sqlserver2012
 
-        .EXAMPLE
-            Get-DbaWaitStatistic -SqlInstance sql2008 -Threshold 98 -IncludeIgnorable
+        Check wait statistics for servers sql2008 and sqlserver2012
 
-            Check wait statistics on server sql2008 for thresholds above 98% and include wait stats that are most often, but not always, ignorable
+    .EXAMPLE
+        PS C:\> Get-DbaWaitStatistic -SqlInstance sql2008 -Threshold 98 -IncludeIgnorable
 
-        .EXAMPLE
-            Get-DbaWaitStatistic -SqlInstance sql2008 | Select *
+        Check wait statistics on server sql2008 for thresholds above 98% and include wait stats that are most often, but not always, ignorable
 
-            Shows detailed notes, if available, from Paul's post
+    .EXAMPLE
+        PS C:\> Get-DbaWaitStatistic -SqlInstance sql2008 | Select *
 
-        .EXAMPLE
-            $output = Get-DbaWaitStatistic -SqlInstance sql2008 -Threshold 100 -IncludeIgnorable | Select * | ConvertTo-DbaDataTable
-             
-            Collects all Wait Statistics (including ignorable waits) on server sql2008 into a Data Table.
+        Shows detailed notes, if available, from Paul's post
 
+    .EXAMPLE
+        PS C:\> $output = Get-DbaWaitStatistic -SqlInstance sql2008 -Threshold 100 -IncludeIgnorable | Select-Object * | ConvertTo-DbaDataTable
 
-        .EXAMPLE
-            $output = Get-DbaWaitStatistic -SqlInstance sql2008
-            $output
-            foreach ($row in ($output | Sort-Object -Unique Url)) { Start-Process ($row).Url }
+        Collects all Wait Statistics (including ignorable waits) on server sql2008 into a Data Table.
 
-            Displays the output then loads the associated sqlskills website for each result. Opens one tab per unique URL.
-    #>
+    .EXAMPLE
+        PS C:\> $output = Get-DbaWaitStatistic -SqlInstance sql2008
+        PS C:\> foreach ($row in ($output | Sort-Object -Unique Url)) { Start-Process ($row).Url }
+
+        Displays the output then loads the associated sqlskills website for each result. Opens one tab per unique URL.
+
+#>
     [CmdletBinding()]
     param (
-        [parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $True)]
+        [parameter(Mandatory, ValueFromPipeline)]
         [Alias("ServerInstance", "SqlServer", "SqlServers")]
         [DbaInstance[]]$SqlInstance,
         [PSCredential]$SqlCredential,
@@ -127,7 +128,7 @@
             SQLTRACE_LOCK                    = "Part of SQL Trace. I would add this to the list of waits to filter out and re-run the wait stats query."
         }
 
-        # Thanks Brentg Ozar via https://gist.github.com/BrentOzar/42e82ee0603a1917c17d74c3fca26d34
+        # Thanks Brent Ozar via https://gist.github.com/BrentOzar/42e82ee0603a1917c17d74c3fca26d34
         # Thanks Marcin Gminski‏ via https://www.dropbox.com/s/x3zr7u18tc1ojey/WaitStats.sql?dl=0
 
         $category = [pscustomobject]@{
@@ -767,14 +768,16 @@
 
         $ignorable = 'BROKER_EVENTHANDLER', 'BROKER_RECEIVE_WAITFOR', 'BROKER_TASK_STOP',
         'BROKER_TO_FLUSH', 'BROKER_TRANSMITTER', 'CHECKPOINT_QUEUE',
-        'CHKPT', 'CLR_AUTO_EVENT', 'CLR_MANUAL_EVENT', 'CLR_SEMAPHORE',
+        'CHKPT', 'CLR_AUTO_EVENT', 'CLR_MANUAL_EVENT', 'CLR_SEMAPHORE', 'CXCONSUMER',
         'DBMIRROR_DBM_EVENT', 'DBMIRROR_EVENTS_QUEUE', 'DBMIRROR_WORKER_QUEUE',
         'DBMIRRORING_CMD', 'DIRTY_PAGE_POLL', 'DISPATCHER_QUEUE_SEMAPHORE',
         'EXECSYNC', 'FSAGENT', 'FT_IFTS_SCHEDULER_IDLE_WAIT', 'FT_IFTSHC_MUTEX',
         'HADR_CLUSAPI_CALL', 'HADR_FILESTREAM_IOMGR_IOCOMPLETION', 'HADR_LOGCAPTURE_WAIT',
         'HADR_NOTIFICATION_DEQUEUE', 'HADR_TIMER_TASK', 'HADR_WORK_QUEUE',
         'KSOURCE_WAKEUP', 'LAZYWRITER_SLEEP', 'LOGMGR_QUEUE',
-        'MEMORY_ALLOCATION_EXT', 'ONDEMAND_TASK_QUEUE', 'PREEMPTIVE_SP_SERVER_DIAGNOSTICS',
+        'MEMORY_ALLOCATION_EXT', 'ONDEMAND_TASK_QUEUE',
+        'PARALLEL_REDO_DRAIN_WORKER', 'PARALLEL_REDO_LOG_CACHE', 'PARALLEL_REDO_TRAN_LIST', 'PARALLEL_REDO_WORKER_SYNC',
+        'PREEMPTIVE_SP_SERVER_DIAGNOSTICS',
         'PARALLEL_REDO_WORKER_WAIT_WORK', 'PREEMPTIVE_HADR_LEASE_MECHANISM',
         'PREEMPTIVE_OS_LIBRARYOPS', 'PREEMPTIVE_OS_COMOPS', 'PREEMPTIVE_OS_CRYPTOPS',
         'PREEMPTIVE_OS_PIPEOPS', 'PREEMPTIVE_OS_AUTHENTICATIONOPS',
@@ -785,7 +788,8 @@
         'PREEMPTIVE_XE_TARGETINIT', 'PREEMPTIVE_XE_TARGETFINALIZE',
         'PWAIT_ALL_COMPONENTS_INITIALIZED', 'PWAIT_DIRECTLOGCONSUMER_GETNEXT',
         'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP', 'QDS_ASYNC_QUEUE',
-        'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP', 'REQUEST_FOR_DEADLOCK_SEARCH',
+        'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP', 'REDO_THREAD_PENDING_WORK',
+        'QDS_SHUTDOWN_QUEUE', 'REQUEST_FOR_DEADLOCK_SEARCH',
         'RESOURCE_QUEUE', 'SERVER_IDLE_CHECK', 'SLEEP_BPOOL_FLUSH', 'SLEEP_DBSTARTUP',
         'SLEEP_DCOMSTARTUP', 'SLEEP_MASTERDBREADY', 'SLEEP_MASTERMDREADY',
         'SLEEP_MASTERUPGRADED', 'SLEEP_MSDBSTARTUP', 'SLEEP_SYSTEMTASK', 'SLEEP_TASK',
@@ -804,7 +808,7 @@
                     ([wait_time_ms] - [signal_wait_time_ms]) / 1000.0 AS [ResourceS],
                     [signal_wait_time_ms] / 1000.0 AS [SignalS],
                     [waiting_tasks_count] AS [WaitCount],
-                    100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER() AS [Percentage],
+                    Case WHEN SUM ([wait_time_ms]) OVER() = 0 THEN NULL ELSE 100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER() END AS [Percentage],
                     ROW_NUMBER() OVER(ORDER BY [wait_time_ms] DESC) AS [RowNum]
                 FROM sys.dm_os_wait_stats
                 WHERE [waiting_tasks_count] > 0
@@ -824,8 +828,8 @@
                 INNER JOIN [Waits] AS [W2]
                     ON [W2].[RowNum] <= [W1].[RowNum]
                 GROUP BY [W1].[RowNum] HAVING SUM ([W2].[Percentage]) - MAX([W1].[Percentage]) < $Threshold"
-            }
-            else {
+        }
+        else {
             $IgnorableList = "'$($ignorable -join "','")'"
             $sql = "WITH [Waits] AS
                 (SELECT
@@ -834,7 +838,7 @@
                     ([wait_time_ms] - [signal_wait_time_ms]) / 1000.0 AS [ResourceS],
                     [signal_wait_time_ms] / 1000.0 AS [SignalS],
                     [waiting_tasks_count] AS [WaitCount],
-                    100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER() AS [Percentage],
+                    Case WHEN SUM ([wait_time_ms]) OVER() = 0 THEN NULL ELSE 100.0 * [wait_time_ms] / SUM ([wait_time_ms]) OVER() END AS [Percentage],
                     ROW_NUMBER() OVER(ORDER BY [wait_time_ms] DESC) AS [RowNum]
                 FROM sys.dm_os_wait_stats
                 WHERE [waiting_tasks_count] > 0
@@ -856,12 +860,11 @@
                     ON [W2].[RowNum] <= [W1].[RowNum]
                 GROUP BY [W1].[RowNum] HAVING SUM ([W2].[Percentage]) - MAX([W1].[Percentage]) < $Threshold"
 
-            }
+        }
         Write-Message -Level Debug -Message $sql
     }
     process {
         foreach ($instance in $SqlInstance) {
-            Write-Message -Level Verbose -Message "Connecting to $instance"
 
             try {
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $SqlCredential -MinimumVersion 9
@@ -884,7 +887,7 @@
                 }
 
                 [PSCustomObject]@{
-                    ComputerName           = $server.NetName
+                    ComputerName           = $server.ComputerName
                     InstanceName           = $server.ServiceName
                     SqlInstance            = $server.DomainInstanceName
                     WaitType               = $waitType

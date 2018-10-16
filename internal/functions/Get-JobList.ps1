@@ -51,12 +51,12 @@ function Get-JobList {
         Author: Shawn Melton (@wsmelton)
 
         Website: https://dbatools.io
-        Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
+        Copyright: (c) 2018 by dbatools, licensed under MIT
         License: MIT https://opensource.org/licenses/MIT
     #>
     [cmdletbinding()]
     param(
-        [Parameter(ValueFromPipeline = $true)]
+        [Parameter(ValueFromPipeline)]
         [DbaInstanceParameter]$SqlInstance,
         [PSCredential]$SqlCredential,
         [string[]]$JobFilter,

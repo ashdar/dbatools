@@ -40,7 +40,7 @@ function New-DbaLogShippingPrimarySecondary {
         .NOTES
             Author: Sander Stad (@sqlstad, sqlstad.nl)
             Website: https://dbatools.io
-            Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
+            Copyright: (c) 2018 by dbatools, licensed under MIT
             License: MIT https://opensource.org/licenses/MIT
 
         .LINK
@@ -51,34 +51,25 @@ function New-DbaLogShippingPrimarySecondary {
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "Low")]
     param (
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory)]
         [Alias("ServerInstance", "SqlServer")]
-        [object]$SqlInstance,
-
-        [System.Management.Automation.PSCredential]
-        $SqlCredential,
-
-        [Parameter(Mandatory = $true)]
+        [DbaInstanceParameter]$SqlInstance,
+        [PSCredential]$SqlCredential,
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [object]$PrimaryDatabase,
-
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [object]$SecondaryDatabase,
-
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
-        [object]$SecondaryServer,
-
-        [System.Management.Automation.PSCredential]
-        $SecondarySqlCredential,
-
+        [DBAInstanceParameter]$SecondaryServer,
+        [PSCredential]$SecondarySqlCredential,
         [Alias('Silent')]
         [switch]$EnableException
     )
 
     # Try connecting to the instance
-    Write-Message -Message "Attempting to connect to $SqlInstance" -Level Verbose
     try {
         $ServerPrimary = Connect-SqlInstance -SqlInstance $SqlInstance -SqlCredential $SqlCredential
     }
@@ -87,7 +78,6 @@ function New-DbaLogShippingPrimarySecondary {
     }
 
     # Try connecting to the instance
-    Write-Message -Message "Attempting to connect to $SecondaryServer" -Level Verbose
     try {
         $ServerSecondary = Connect-SqlInstance -SqlInstance $SecondaryServer -SqlCredential $SecondarySqlCredential
     }
@@ -134,7 +124,7 @@ function New-DbaLogShippingPrimarySecondary {
     # Execute the query to add the log shipping primary
     if ($PSCmdlet.ShouldProcess($SqlInstance, ("Configuring logshipping connecting the primary database $PrimaryDatabase to secondary database $SecondaryDatabase on $SqlInstance"))) {
         try {
-            Write-Message -Message "Configuring logshipping connecting the primary database $PrimaryDatabase to secondary database $SecondaryDatabase on $SqlInstance." -Level Output
+            Write-Message -Message "Configuring logshipping connecting the primary database $PrimaryDatabase to secondary database $SecondaryDatabase on $SqlInstance." -Level Verbose
             Write-Message -Message "Executing query:`n$Query" -Level Verbose
             $ServerPrimary.Query($Query)
         }
@@ -144,6 +134,6 @@ function New-DbaLogShippingPrimarySecondary {
         }
     }
 
-    Write-Message -Message "Finished configuring of primary database $PrimaryDatabase to secondary database $SecondaryDatabase." -Level Output
+    Write-Message -Message "Finished configuring of primary database $PrimaryDatabase to secondary database $SecondaryDatabase." -Level Verbose
 
 }

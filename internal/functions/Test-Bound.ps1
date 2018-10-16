@@ -38,8 +38,8 @@
             Returns whether any of the specified parameters was not bound
     #>
     [CmdletBinding()]
-    Param (
-        [Parameter(Mandatory = $true, Position = 0)]
+    param (
+        [Parameter(Mandatory, Position = 0)]
         [string[]]
         $ParameterName,
 

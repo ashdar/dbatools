@@ -73,7 +73,7 @@ function New-DbaLogShippingSecondaryPrimary {
         .NOTES
             Author: Sander Stad (@sqlstad, sqlstad.nl)
             Website: https://dbatools.io
-            Copyright: (C) Chrissy LeMaire, clemaire@gmail.com
+            Copyright: (c) 2018 by dbatools, licensed under MIT
             License: MIT https://opensource.org/licenses/MIT
 
         .LINK
@@ -84,66 +84,49 @@ function New-DbaLogShippingSecondaryPrimary {
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "Low")]
     param (
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory)]
         [Alias("ServerInstance", "SqlServer")]
         [object]$SqlInstance,
-
-        [System.Management.Automation.PSCredential]
-        $SqlCredential,
-
-        [Parameter(Mandatory = $true)]
+        [PSCredential]$SqlCredential,
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$BackupSourceDirectory,
-
         [Parameter(Mandatory = $false)]
         [string]$BackupDestinationDirectory,
-
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$CopyJob,
-
         [int]$FileRetentionPeriod = 14420,
-
         [string]$MonitorServer,
-
-        [System.Management.Automation.PSCredential]
-        $MonitorCredential,
-
-        [Parameter(Mandatory = $true)]
+        [PSCredential]$MonitorCredential,
+        [Parameter(Mandatory)]
         [ValidateSet(0, "sqlserver", 1, "windows")]
         [object]$MonitorServerSecurityMode = 1,
-
         [object]$PrimaryServer,
-
-        [PSCredential][System.Management.Automation.CredentialAttribute()]$PrimarySqlCredential,
+        [PSCredential]$PrimarySqlCredential,
         [object]$PrimaryDatabase,
-
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [ValidateNotNullOrEmpty()]
         [string]$RestoreJob,
-
         [Alias('Silent')]
         [switch]$EnableException,
-
         [switch]$Force
     )
 
     # Try connecting to the instance
-    Write-Message -Message "Attempting to connect to $SqlInstance" -Level Verbose
     try {
         $ServerSecondary = Connect-SqlInstance -SqlInstance $SqlInstance -SqlCredential $SqlCredential
     }
     catch {
-        Stop-Function -Message "Could not connect to Sql Server instance"  -ErrorRecord $_ -Target $SqlInstance -Continue
+        Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $SqlInstance -Continue
     }
 
     # Try connecting to the instance
-    Write-Message -Message "Attempting to connect to $PrimaryServer" -Level Verbose
     try {
         $ServerPrimary = Connect-SqlInstance -SqlInstance $PrimaryServer -SqlCredential $PrimarySqlCredential
     }
     catch {
-        Stop-Function -Message "Could not connect to Sql Server instance"  -ErrorRecord $_ -Target $PrimaryServer -Continue
+        Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $PrimaryServer -Continue
     }
 
     # Check if the backup UNC path is correct and reachable
@@ -159,7 +142,7 @@ function New-DbaLogShippingSecondaryPrimary {
     }
 
     # Check the MonitorServer
-    if ($Force -and -not $MonitorServer) {
+    if (-not $MonitorServer -and $Force) {
         $MonitorServer = $SqlInstance
         Write-Message -Message "Setting monitor server to $MonitorServer." -Level Verbose
     }
@@ -232,7 +215,7 @@ function New-DbaLogShippingSecondaryPrimary {
     # Execute the query to add the log shipping primary
     if ($PSCmdlet.ShouldProcess($SqlServer, ("Configuring logshipping making settings for the primary database to secondary database on $SqlInstance"))) {
         try {
-            Write-Message -Message "Configuring logshipping making settings for the primary database." -Level Output
+            Write-Message -Message "Configuring logshipping making settings for the primary database." -Level Verbose
             Write-Message -Message "Executing query:`n$Query" -Level Verbose
             $ServerSecondary.Query($Query)
         }
@@ -242,5 +225,5 @@ function New-DbaLogShippingSecondaryPrimary {
         }
     }
 
-    Write-Message -Message "Finished configuring of secondary database to primary database $PrimaryDatabase." -Level Output
+    Write-Message -Message "Finished configuring of secondary database to primary database $PrimaryDatabase." -Level Verbose
 }

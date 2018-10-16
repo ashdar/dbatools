@@ -167,6 +167,17 @@ Describe "$commandname Integration Tests" -Tags "IntegrationTests" {
         }
     }
 
+    Context "Test Backup-DbaDatabase can take pipe input"{
+        $results = Get-DbaDatabase -SqlInstance $script:instance1 -Database master | Backup-DbaDatabase -confirm:$false -WarningVariable warnvar
+        It "Should not warn" {
+            '' -eq $warnvar | Should -Be $True
+        }
+        It "Should Complete Successfully" {
+            $results.BackupComplete | Should -Be $true
+        }
+
+    }
+
     Context "Should handle NUL as an input path" {
         $results = Backup-DbaDatabase -SqlInstance $script:instance1 -Database master -BackupFileName NUL
         It "Should return succesful backup" {
@@ -182,8 +193,90 @@ Describe "$commandname Integration Tests" -Tags "IntegrationTests" {
         It "Should return a string" {
             $results.GetType().ToString() | Should -Be 'System.String'
         }
-        it "Should return BACKUP DATABASE [master] TO  DISK = N'c:\notexists\file.bak' WITH NOFORMAT, NOINIT, NOSKIP, REWIND, NOUNLOAD,  STATS = 1" {
+        It "Should return BACKUP DATABASE [master] TO  DISK = N'c:\notexists\file.bak' WITH NOFORMAT, NOINIT, NOSKIP, REWIND, NOUNLOAD,  STATS = 1" {
             $results | Should -Be "BACKUP DATABASE [master] TO  DISK = N'c:\notexists\file.bak' WITH NOFORMAT, NOINIT, NOSKIP, REWIND, NOUNLOAD,  STATS = 1"
+        }
+    }
+
+    Context "Should handle an encrypted database when compression is specified" {
+        $sqlencrypt =
+@"
+CREATE MASTER KEY ENCRYPTION BY PASSWORD = '<UseStrongPasswordHere>';
+go
+CREATE CERTIFICATE MyServerCert WITH SUBJECT = 'My DEK Certificate';
+go
+CREATE DATABASE encrypted
+go
+"@
+        $null = Invoke-DbaQuery -SqlInstance $script:instance2 -Query $sqlencrypt -Database Master
+        $createdb =
+@"
+CREATE DATABASE ENCRYPTION KEY
+WITH ALGORITHM = AES_128
+ENCRYPTION BY SERVER CERTIFICATE MyServerCert;
+GO
+ALTER DATABASE encrypted
+SET ENCRYPTION ON;
+GO
+"@
+        $null = Invoke-DbaQuery -SqlInstance $script:instance2 -Query $createdb -Database encrypted
+        It "Should not compress an encrypted db" {
+            $results = Backup-DbaDatabase -SqlInstance $script:instance2 -Database encrypted -Compress
+            $results.script | Should -BeLike '*NO_COMPRESSION*'
+        }
+        Remove-DbaDatabase -SqlInstance $script:instance2 -Database encrypted -confirm:$false
+        $sqldrop =
+@"
+drop certificate MyServerCert
+go
+drop master key
+go
+"@
+        $null = Invoke-DbaQuery -SqlInstance $script:instance2 -Query $sqldrop -Database Master
+    }
+
+    Context "Custom TimeStamp" {
+        # Test relies on DateFormat bobob returning bobob as the values aren't interpreted, check here in case .Net rules change
+        $results = Backup-DbaDatabase -SqlInstance $script:instance1 -Database master -BackupDirectory $DestBackupDir -TimeStampFormat bobob
+        It "Should apply the corect custom Timestamp" {
+            ($results | Where-Object {$_.BackupPath -like '*bobob*'}).count | Should -Be $results.count
+        }
+    }
+
+    Context "Test Backup templating" {
+        $results = Backup-DbaDatabase -SqlInstance $script:instance1 -Database master -BackupDirectory $DestBackupDir\dbname\instancename\backuptype\  -BackupFileName dbname-backuptype.bak -ReplaceInName -BuildPath
+        It "Should have replaced the markers" {
+            $results.BackupPath | Should -BeLike "$DestBackupDir\master\$(($script:instance1).split('\')[1])\Full\master-Full.bak"
+        }
+    }
+
+    if ($env:azurepasswd1) {
+        Context "Azure works" {
+            BeforeAll {
+                $server = Connect-DbaInstance -SqlInstance $script:instance2
+                $sql = "CREATE CREDENTIAL [https://dbatools.blob.core.windows.net/sql] WITH IDENTITY = N'SHARED ACCESS SIGNATURE', SECRET = N'$env:azurepasswd'"
+                $server.Query($sql)
+                $server.Query("CREATE DATABASE dbatoolsci_azure")
+                $sql = "CREATE CREDENTIAL [dbatools_ci] WITH IDENTITY = N'dbatools', SECRET = N'$env:azurelegacypasswd'"
+                $server.Query($sql)
+            }
+            AfterAll {
+                Get-DbaDatabase -SqlInstance $script:instance2 -Database "dbatoolsci_azure" | Remove-DbaDatabase -Confirm:$false
+                $server.Query("DROP CREDENTIAL [https://dbatools.blob.core.windows.net/sql]")
+                $server.Query("DROP CREDENTIAL dbatools_ci")
+            }
+            It "backs up to Azure properly using SHARED ACCESS SIGNATURE" {
+                $results = Backup-DbaDatabase -SqlInstance $script:instance2 -AzureBaseUrl https://dbatools.blob.core.windows.net/sql -Database dbatoolsci_azure -BackupFileName dbatoolsci_azure.bak -WithFormat
+                $results.Database | Should -Be 'dbatoolsci_azure'
+                $results.DeviceType | Should -Be 'URL'
+                $results.BackupFile | Should -Be 'dbatoolsci_azure.bak'
+            }
+            It "backs up to Azure properly using legacy credential" {
+                $results = Backup-DbaDatabase -SqlInstance $script:instance2 -AzureBaseUrl https://dbatools.blob.core.windows.net/sql -Database dbatoolsci_azure -BackupFileName dbatoolsci_azure.bak -WithFormat -AzureCredential dbatools_ci
+                $results.Database | Should -Be 'dbatoolsci_azure'
+                $results.DeviceType | Should -Be 'URL'
+                $results.BackupFile | Should -Be 'dbatoolsci_azure.bak'
+            }
         }
     }
 }

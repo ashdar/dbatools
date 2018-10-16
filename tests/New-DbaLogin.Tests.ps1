@@ -56,8 +56,8 @@ Describe "$commandname Integration Tests" -Tags "IntegrationTests" {
     $null = New-DbaCredential -SqlInstance $server1 -Name $credLogin -CredentialIdentity $credLogin -Password $securePassword -Force
 
     #create master key if not exists
-    if (!($mkey = Get-DbaDatabaseMasterKey -SqlInstance $server1 -Database master)) {
-        $null = New-DbaDatabaseMasterKey -SqlInstance $server1 -Database master -Password $securePassword -Confirm:$false
+    if (!($mkey = Get-DbaDbMasterKey -SqlInstance $server1 -Database master)) {
+        $null = New-DbaDbMasterKey -SqlInstance $server1 -Database master -Password $securePassword -Confirm:$false
     }
     
     try {
@@ -67,7 +67,7 @@ Describe "$commandname Integration Tests" -Tags "IntegrationTests" {
         }
     }
     catch {<#nbd#> }
-    $null = New-DbaDbCertificate $server1 -Name $certificateName -Password $null
+    $null = New-DbaDbCertificate $server1 -Name $certificateName -Password $null -Confirm:$false
 
     Context "Create new logins" {
         It "Should be created successfully - Hashed password" {
@@ -201,7 +201,7 @@ Describe "$commandname Integration Tests" -Tags "IntegrationTests" {
         $server1.Credentials[$credLogin].Drop()
         $server1.Databases['master'].Certificates[$certificateName].Drop()
         if (!$mkey) {
-            $null = Remove-DbaDatabaseMasterKey -SqlInstance $script:instance1 -Database master -Confirm:$false
+            $null = Remove-DbaDbMasterKey -SqlInstance $script:instance1 -Database master -Confirm:$false
         }
     }
     catch {<#nbd#> }

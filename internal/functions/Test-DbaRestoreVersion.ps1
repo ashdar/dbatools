@@ -26,7 +26,7 @@ function Test-DbaRestoreVersion {
         Author: Stuart Moore (@napalmgram), stuart-moore.com
         Tags:
         dbatools PowerShell module (https://dbatools.io, clemaire@gmail.com)
-        Copyright (C) 2016 Chrissy LeMaire
+       Copyright: (c) 2018 by dbatools, licensed under MIT
         License: MIT https://opensource.org/licenses/MIT
 
     .EXAMPLE
@@ -37,10 +37,10 @@ function Test-DbaRestoreVersion {
 #>
     [CmdletBinding()]
     param (
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory)]
         [Alias("ServerInstance", "SqlServer")]
         [object]$SqlInstance,
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory)]
         [object[]]$FilteredRestoreFiles,
         [PSCredential]$SqlCredential,
         [switch]$SystemDatabaseRestore
