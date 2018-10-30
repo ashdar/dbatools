@@ -1,5 +1,6 @@
-﻿function Restore-DbaDbCertificate {
-<#
+#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
+function Restore-DbaDbCertificate {
+    <#
     .SYNOPSIS
         Imports certificates from .cer files using SMO.
 
@@ -9,11 +10,11 @@
     .PARAMETER SqlInstance
         The target SQL Server instance or instances.
 
-    .PARAMETER Path
-        The Path the contains the certificate and private key files. The path can be a directory or a specific certificate.
-
     .PARAMETER SqlCredential
         Login to the target instance using alternative credentials. Windows and SQL Authentication supported. Accepts credential objects (Get-Credential)
+
+    .PARAMETER Path
+        The Path the contains the certificate and private key files. The path can be a directory or a specific certificate.
 
     .PARAMETER Password
         Secure string used to decrypt the private key.
@@ -52,45 +53,33 @@
         Restores all the certificates in the specified path, password is used to both decrypt and encrypt the private key.
 
     .EXAMPLE
-        PS C:\> Restore-DbaDbCertificate -SqlInstance Server1 -Path \\Server1\Certificates\DatabaseTDE.cer -EncryptionType MasterKey -Password (ConvertTo-SecureString -force -AsPlainText GoodPass1234!!)
+        PS C:\> Restore-DbaDbCertificate -SqlInstance Server1 -Path \\Server1\Certificates\DatabaseTDE.cer -Password (ConvertTo-SecureString -force -AsPlainText GoodPass1234!!)
 
         Restores the DatabaseTDE certificate to Server1 and uses the MasterKey to encrypt the private key.
 
 #>
-    [CmdletBinding(DefaultParameterSetName = "Default", SupportsShouldProcess = $true)]
+    [CmdletBinding(DefaultParameterSetName = "Default", SupportsShouldProcess, ConfirmImpact = "High")]
     param (
         [Parameter(Mandatory)]
-        [ValidateNotNullOrEmpty()]
-        [Alias("ServerInstance", "SqlServer")]
         [DbaInstanceParameter]$SqlInstance,
         [PSCredential]$SqlCredential,
         [parameter(Mandatory, ValueFromPipeline)]
+        [Alias("FullName")]
         [object[]]$Path,
         [Security.SecureString]$EncryptionPassword,
-        [object]$Database = "master",
+        [string]$Database = "master",
         [Security.SecureString]$Password = (Read-Host "Password" -AsSecureString),
-        [Alias('Silent')]
         [switch]$EnableException
     )
-
-    begin {
-        Test-DbaDeprecation -DeprecatedOn "1.0.0" -Alias Retore-DbaDatabaseCertificate
-
-    }
-
     process {
-        if (Test-FunctionInterrupt) { return }
+        try {
+            $server = Connect-SqlInstance -SqlInstance $SqlInstance -SqlCredential $sqlcredential
+        } catch {
+            Stop-Function -Message "Failed to connect to: $SqlInstance" -Target $SqlInstance -ErrorRecord $_
+            return
+        }
 
-            try {
-                $server = Connect-SqlInstance -SqlInstance $SqlInstance -SqlCredential $sqlcredential
-            }
-            catch {
-                Stop-Function -Message "Failed to connect to: $SqlInstance" -Target $SqlInstance -InnerErrorRecord $_
-                return
-            }
-
-        foreach ($fullname in $path) {
-
+        foreach ($fullname in $Path) {
             if (-not $SqlInstance.IsLocalHost -and -not $fullname.StartsWith('\')) {
                 Stop-Function -Message "Path ($fullname) must be a UNC share when SQL instance is not local." -Continue -Target $fullname
             }
@@ -113,19 +102,24 @@
                     $privatekey = "$directory\$certname.pvk"
                     Write-Message -Level Verbose -Message "Full certificate path: $fullcertname"
                     Write-Message -Level Verbose -Message "Private key: $privatekey"
-                    $fromfile = 1
-                    if($EncryptionPassword) {
+                    $fromfile = $true
+
+                    if ($EncryptionPassword) {
                         $smocert.Create($fullcertname, $fromfile, $privatekey, [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($password)), [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($password)))
-                    }else {
+                    } else {
                         $smocert.Create($fullcertname, $fromfile, $privatekey, [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($password)))
                     }
                     $cert = $smocert
-                }
-                catch {
+                } catch {
                     Write-Message -Level Warning -Message $_ -ErrorRecord $_ -Target $instance
                 }
             }
             Get-DbaDbCertificate -SqlInstance $server -Database $Database -Certificate $cert.Name
         }
     }
+    end {
+        Test-DbaDeprecation -DeprecatedOn "1.0.0" -Alias Retore-DbaDatabaseCertificate
+
+    }
 }
+

@@ -1,7 +1,7 @@
-﻿function Get-DbaPbmPolicy {
-<#
+function Get-DbaPbmPolicy {
+    <#
     .SYNOPSIS
-        Returns polices from policy based management from an instance.
+        Returns policies from Policy-Based Management from an instance.
 
     .DESCRIPTION
         Returns details of policies with the option to filter on Category and SystemObjects.
@@ -102,3 +102,5 @@
         Test-DbaDeprecation -DeprecatedOn "1.0.0" -EnableException:$false -Alias Get-DbaPolicy
     }
 }
+
+

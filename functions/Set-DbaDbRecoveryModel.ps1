@@ -1,5 +1,5 @@
-﻿function Set-DbaDbRecoveryModel {
-<#
+function Set-DbaDbRecoveryModel {
+    <#
     .SYNOPSIS
         Set-DbaDbRecoveryModel sets the Recovery Model.
 
@@ -102,8 +102,7 @@
         foreach ($instance in $SqlInstance) {
             try {
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $SqlCredential
-            }
-            catch {
+            } catch {
                 Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
             }
 
@@ -136,10 +135,9 @@
         foreach ($db in $InputObject) {
             if ($db.RecoveryModel -eq $RecoveryModel) {
                 Stop-Function -Message "Recovery Model for database $db is already set to $RecoveryModel" -Category ConnectionError -Target $instance -Continue
-            }
-            else {
-                $db.RecoveryModel = $RecoveryModel;
+            } else {
                 if ($Pscmdlet.ShouldProcess("$db on $instance", "ALTER DATABASE $db SET RECOVERY $RecoveryModel")) {
+                    $db.RecoveryModel = $RecoveryModel
                     $db.Alter()
                     Write-Message -Level Verbose -Message "Recovery Model set to $RecoveryModel for database $db"
                 }
@@ -148,3 +146,4 @@
         }
     }
 }
+

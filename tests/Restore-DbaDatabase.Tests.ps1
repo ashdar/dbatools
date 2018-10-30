@@ -1,6 +1,21 @@
-﻿$CommandName = $MyInvocation.MyCommand.Name.Replace(".Tests.ps1", "")
-Write-Host -Object "Running $PSCommandpath" -ForegroundColor Cyan
+$CommandName = $MyInvocation.MyCommand.Name.Replace(".Tests.ps1", "")
+Write-Host -Object "Running $PSCommandPath" -ForegroundColor Cyan
 . "$PSScriptRoot\constants.ps1"
+
+Describe "$CommandName Unit Tests" -Tag 'UnitTests' {
+    Context "Validate parameters" {
+        $paramCount = 45
+        $defaultParamCount = 13
+        [object[]]$params = (Get-ChildItem function:\Restore-DbaDatabase).Parameters.Keys
+        $knownParameters = 'SqlInstance','SqlCredential','Path','DatabaseName','DestinationDataDirectory','DestinationLogDirectory','DestinationFileStreamDirectory','RestoreTime','NoRecovery','WithReplace','XpDirTree','OutputScriptOnly','VerifyOnly','MaintenanceSolutionBackup','FileMapping','IgnoreLogBackup','useDestinationDefaultDirectories','ReuseSourceFolderStructure','DestinationFilePrefix','RestoredDatabaseNamePrefix','TrustDbBackupHistory','MaxTransferSize','BlockSize','BufferCount','DirectoryRecurse','EnableException','StandbyDirectory','Continue','AzureCredential','ReplaceDbNameInFile','DestinationFileSuffix','Recover','KeepCDC','AllowContinue','GetBackupInformation','StopAfterGetBackupInformation','SelectBackupInformation','StopAfterSelectBackupInformation','FormatBackupInformation','StopAfterFormatBackupInformation','TestBackupInformation','StopAfterTestBackupInformation','PageRestore','PageRestoreTailFolder','StatementTimeout'
+        It "Should contain our specific parameters" {
+            ( (Compare-Object -ReferenceObject $knownParameters -DifferenceObject $params -IncludeEqual | Where-Object SideIndicator -eq "==").Count ) | Should Be $paramCount
+        }
+        It "Should only contain $paramCount parameters" {
+            $params.Count - $defaultParamCount | Should Be $paramCount
+        }
+    }
+}
 
 Describe "$CommandName Integration Tests" -Tag "IntegrationTests" {
     # $script:instance3 to add to the 2016_2017 matrix
@@ -379,7 +394,7 @@ Describe "$CommandName Integration Tests" -Tag "IntegrationTests" {
         }
 
     }
-#>
+
     Context "RestoreTime point in time and continue with rename" {
         AfterAll {
             $null = Get-DbaDatabase -SqlInstance $script:instance2 -ExcludeAllSystemDb | Remove-DbaDatabase -Confirm:$false
@@ -785,22 +800,6 @@ Describe "$CommandName Integration Tests" -Tag "IntegrationTests" {
         }
     }
 
-    Context "Warn if trying to restore to sql2000" {
-        InModuleScope dbatools {
-            It "Should return advice"{
-                Mock Connect-SQLInstance -MockWith {
-                    return [object]@{
-                        Name      = 'SQLServerName'
-                        ComputerName   = 'SQLServerName'
-                        VersionMajor = 8
-                    } #object
-                } #mock connect-sqlserver
-                $null = Restore-DbaDatabase -SqlInstance SQLServerName -path c:\temp -WarningVariable warnvar
-                $warnvar | Should BeLike '*Due to SQL Server 2000 not returning all the backup headers we cannot restore directly*'
-            }
-        }
-    }
-
     Context "Don't try to create/test folders with OutputScriptOnly (Issue 4046)"{
         $null = Restore-DbaDatabase -SqlInstance $script:instance2 -Path $script:appveyorlabrepo\RestoreTimeClean\RestoreTimeClean.bak -DestinationDataDirectory g:\DoesNtExist -OutputScriptOnly -WarningVariable warnvar
         It "Should not raise a warning" {
@@ -808,29 +807,62 @@ Describe "$CommandName Integration Tests" -Tag "IntegrationTests" {
         }
     }
 
-    if ($env:azurepasswd1) {
-        Context "Restores to Azure" {
+    if ($env:azurepasswd) {
+        Context "Restores From Azure using SAS" {
             BeforeAll {
                 $server = Connect-DbaInstance -SqlInstance $script:instance2
-                $sql = "CREATE CREDENTIAL [https://dbatools.blob.core.windows.net/sql] WITH IDENTITY = N'SHARED ACCESS SIGNATURE', SECRET = N'$env:azurepasswd'"
+                if (Get-DbaCredential -SqlInstance $script:instance2 -Name "[$script:azureblob]" ){
+                    $sql = "DROP CREDENTIAL [$script:azureblob]"
+                    $server.Query($sql)
+                }
+                $sql = "CREATE CREDENTIAL [$script:azureblob] WITH IDENTITY = N'SHARED ACCESS SIGNATURE', SECRET = N'$env:azurepasswd'"
                 $server.Query($sql)
                 $server.Query("CREATE DATABASE dbatoolsci_azure")
             }
             AfterAll {
-                $server.Query("DROP CREDENTIAL [https://dbatools.blob.core.windows.net/sql]")
+                $server.Query("DROP CREDENTIAL [$script:azureblob]")
                 Get-DbaDatabase -SqlInstance $script:instance2 -Database "dbatoolsci_azure" | Remove-DbaDatabase -Confirm:$false
             }
             It "Should restore cleanly" {
-                $results = Restore-DbaDatabase -SqlInstance $script:instance2 -WithReplace -DatabaseName dbatoolsci_azure -Path https://dbatools.blob.core.windows.net/sql/dbatoolsci_azure.bak
-                $results.BackupFile | Should -Be 'https://dbatools.blob.core.windows.net/sql/dbatoolsci_azure.bak'
+                $results = Restore-DbaDatabase -SqlInstance $script:instance2 -WithReplace -DatabaseName dbatoolsci_azure -Path $script:azureblob/dbatoolsci_azure.bak
+                $results.BackupFile | Should -Be "$script:azureblob/dbatoolsci_azure.bak"
+                $results.RestoreComplete | Should Be $True
             }
         }
     }
-    if ($env:azurelegacypasswd1) {
-        Context "Restores to Azure" {
+
+    if ($env:azurepasswd) {
+        Context "Restores Striped backup From Azure using SAS" {
             BeforeAll {
                 $server = Connect-DbaInstance -SqlInstance $script:instance2
-                $sql = "CREATE CREDENTIAL [dbatools_ci] WITH IDENTITY = N'dbatools', SECRET = N'$env:azurelegacypasswd'"
+                if (Get-DbaCredential -SqlInstance $script:instance2 -name "[$script:azureblob]" ) {
+                    $sql = "DROP CREDENTIAL [$script:azureblob]"
+                    $server.Query($sql)
+                }
+                $sql = "CREATE CREDENTIAL [$script:azureblob] WITH IDENTITY = N'SHARED ACCESS SIGNATURE', SECRET = N'$env:azurepasswd'"
+                $server.Query($sql)
+                $server.Query("CREATE DATABASE dbatoolsci_azure")
+            }
+            AfterAll {
+                $server.Query("DROP CREDENTIAL [$script:azureblob]")
+                Get-DbaDatabase -SqlInstance $script:instance2 -Database "dbatoolsci_azure" | Remove-DbaDatabase -Confirm:$false
+            }
+            It "Should restore cleanly" {
+                $results = @("$script:azureblob/az-1.bak","$script:azureblob/az-2.bak","$script:azureblob/az-3.bak") | Restore-DbaDatabase -SqlInstance $script:instance2 -DatabaseName azstripetest  -WithReplace -ReplaceDbNameInFile
+                $results.RestoreComplete | Should Be $True
+            }
+        }
+    }
+    if ($env:azurelegacypasswd) {
+        Context "Restores from Azure using Access Key" {
+            BeforeAll {
+                Get-DbaDatabase -SqlInstance $script:instance2 -Database "dbatoolsci_azure" | Remove-DbaDatabase -Confirm:$false
+                $server = Connect-DbaInstance -SqlInstance $script:instance2
+                if (Get-DbaCredential -SqlInstance $script:instance2 -name dbatools_ci) {
+                    $sql = "DROP CREDENTIAL dbatools_ci"
+                    $server.Query($sql)
+                }
+                $sql = "CREATE CREDENTIAL [dbatools_ci] WITH IDENTITY = N'$script:azureblobaccount', SECRET = N'$env:azurelegacypasswd'"
                 $server.Query($sql)
                 $server.Query("CREATE DATABASE dbatoolsci_azure")
             }
@@ -842,6 +874,7 @@ Describe "$CommandName Integration Tests" -Tag "IntegrationTests" {
                 $results = Restore-DbaDatabase -SqlInstance $script:instance2 -WithReplace -DatabaseName dbatoolsci_azure -Path https://dbatools.blob.core.windows.net/legacy/dbatoolsci_azure.bak -AzureCredential dbatools_ci
                 $results.BackupFile | Should -Be 'https://dbatools.blob.core.windows.net/legacy/dbatoolsci_azure.bak'
                 $results.Script -match 'CREDENTIAL' | Should -Be $true
+                $results.RestoreComplete | Should Be $True
             }
         }
     }

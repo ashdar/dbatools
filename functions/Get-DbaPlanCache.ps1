@@ -1,10 +1,10 @@
-﻿function Get-DbaPlanCache {
-<#
+function Get-DbaPlanCache {
+    <#
     .SYNOPSIS
         Provides information about adhoc and prepared plan cache usage
 
     .DESCRIPTION
-        Checks ahoc and prepared plan cache for each database, if over 100 MBS you should consider you using Remove-DbaQueryPlan to clear the plan caches or turning on optimize for adhoc workloads configuration is running 2008 or later.
+        Checks adhoc and prepared plan cache for each database, if over 100 MB you should consider using Remove-DbaQueryPlan to clear the plan caches or turning on "optimize for adhoc workloads" configuration if running 2008 or later.
 
         References: https://www.sqlskills.com/blogs/kimberly/plan-cache-adhoc-workloads-and-clearing-the-single-use-plan-cache-bloat/
 
@@ -63,16 +63,17 @@
         foreach ($instance in $SqlInstance) {
             try {
                 $server = Connect-DbaInstance -SqlInstance $instance -SqlCredential $sqlcredential
-            }
-            catch {
+            } catch {
                 Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
             }
 
             $results = $server.Query($sql)
-            $size = [dbasize]($results.MB*1024*1024)
+            $size = [dbasize]($results.MB * 1024 * 1024)
             Add-Member -Force -InputObject $results -MemberType NoteProperty -Name Size -Value $size
 
             Select-DefaultView -InputObject $results -Property ComputerName, InstanceName, SqlInstance, Size, UseCount
         }
     }
 }
+
+

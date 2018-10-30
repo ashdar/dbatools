@@ -1,6 +1,6 @@
-﻿#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
+#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
 function Disable-DbaAgHadr {
-<#
+    <#
     .SYNOPSIS
         Disables the Hadr service setting on the specified SQL Server.
 
@@ -12,7 +12,7 @@ function Disable-DbaAgHadr {
         The target SQL Server instance or instances.
 
     .PARAMETER Credential
-        Credential object used to connect to the Windows server itself as a different user
+        Credential object used to connect to the Windows server as a different user
 
     .PARAMETER WhatIf
         Shows what would happen if the command were to run. No actions are actually performed.
@@ -40,6 +40,11 @@ function Disable-DbaAgHadr {
         https://dbatools.io/Disable-DbaAgHadr
 
     .EXAMPLE
+        PS C:\> Disable-DbaAgHadr -SqlInstance sql2016
+
+        Sets Hadr service to disabled for the instance sql2016 but changes will not be applied until the next time the server restarts.
+
+    .EXAMPLE
         PS C:\> Disable-DbaAgHadr -SqlInstance sql2016 -Force
 
         Sets Hadr service to disabled for the instance sql2016, and restart the service to apply the change.
@@ -53,54 +58,11 @@ function Disable-DbaAgHadr {
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = "High")]
     param (
         [parameter(Mandatory, ValueFromPipeline)]
-        [Alias("ServerInstance", "SqlServer")]
         [DbaInstanceParameter[]]$SqlInstance,
         [PSCredential]$Credential,
         [switch]$Force,
-        [Alias('Silent')]
         [switch]$EnableException
     )
-    begin {
-        function GetDbaAgHadr {
-            [CmdletBinding()]
-            param (
-                [parameter(Mandatory, ValueFromPipeline)]
-                [Alias("ServerInstance", "SqlServer")]
-                [DbaInstanceParameter[]]$SqlInstance,
-                [PSCredential]$Credential,
-                [Alias('Silent')]
-                [switch]$EnableException
-            )
-            process {
-                foreach ($instance in $SqlInstance) {
-
-                    try {
-                        $computer = $computerName = $instance.ComputerName
-                        $instanceName = $instance.InstanceName
-                        $currentState = Invoke-ManagedComputerCommand -ComputerName $computerName -ScriptBlock { $wmi.Services[$args[0]] | Select-Object IsHadrEnabled } -ArgumentList $instanceName -Credential $Credential
-                    }
-                    catch {
-                        Stop-Function -Message "Failure connecting to $computer" -Category ConnectionError -ErrorRecord $_ -Target $instance
-                        return
-                    }
-
-                    if ($null -eq $currentState.IsHadrEnabled) {
-                        $isenabled = $false
-                    }
-                    else {
-                        $isenabled = $currentState.IsHadrEnabled
-                    }
-                    [PSCustomObject]@{
-                        ComputerName     = $computer
-                        InstanceName     = $instanceName
-                        SqlInstance      = $instance.FullName
-                        IsHadrEnabled    = $isenabled
-                    }
-                }
-            }
-        }
-    }
-
     process {
         foreach ($instance in $SqlInstance) {
             $computer = $computerFullName = $instance.ComputerName
@@ -110,16 +72,18 @@ function Disable-DbaAgHadr {
             }
             $noChange = $false
 
+            <#
+            #Variable marked as unused by PSScriptAnalyzer
             switch ($instance.InstanceName) {
                 'MSSQLSERVER' { $agentName = 'SQLSERVERAGENT' }
                 default { $agentName = "SQLAgent`$$instanceName" }
             }
+            #>
 
             try {
                 Write-Message -Level Verbose -Message "Checking current Hadr setting for $computer"
-                $currentState = GetDbaAgHadr -SqlInstance $instance -Credential $Credential
-            }
-            catch {
+                $currentState = Get-WmiHadr -SqlInstance $instance -Credential $Credential
+            } catch {
                 Stop-Function -Message "Failure to pull current state of Hadr setting on $computer" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
             }
 
@@ -145,8 +109,7 @@ function Disable-DbaAgHadr {
                 if ($PSCmdlet.ShouldProcess($instance, "Changing Hadr from $isHadrEnabled to 0 for $instance")) {
                     try {
                         Invoke-ManagedComputerCommand -ComputerName $computerFullName -Credential $Credential -ScriptBlock $scriptblock -ArgumentList $instancename
-                    }
-                    catch {
+                    } catch {
                         Stop-Function -Continue -Message "Failure on $($instance.FullName) | This may be because AlwaysOn Availability Groups feature requires the x86(non-WOW) or x64 Enterprise Edition of SQL Server 2012 (or later version) running on Windows Server 2008 (or later version) with WSFC hotfix KB 2494036 installed."
                     }
                 }
@@ -155,25 +118,25 @@ function Disable-DbaAgHadr {
                         try {
                             $null = Stop-DbaService -ComputerName $computerFullName -InstanceName $instanceName -Type Agent, Engine
                             $null = Start-DbaService -ComputerName $computerFullName -InstanceName $instanceName -Type Agent, Engine
-                        }
-                        catch {
+                        } catch {
                             Stop-Function -Message "Issue restarting $instance" -Target $instance -Continue
                         }
                     }
                 }
-                $newState = GetDbaAgHadr -SqlInstance $instance -Credential $Credential
+                $newState = Get-WmiHadr -SqlInstance $instance -Credential $Credential
 
                 if (Test-Bound -Not -ParameterName Force) {
                     Write-Message -Level Warning -Message "You must restart the SQL Server for it to take effect."
                 }
 
                 [PSCustomObject]@{
-                    ComputerName   = $newState.ComputerName
-                    InstanceName   = $newState.InstanceName
-                    SqlInstance    = $newState.SqlInstance
-                    IsHadrEnabled  = $false
+                    ComputerName  = $newState.ComputerName
+                    InstanceName  = $newState.InstanceName
+                    SqlInstance   = $newState.SqlInstance
+                    IsHadrEnabled = $false
                 }
             }
         }
     }
 }
+

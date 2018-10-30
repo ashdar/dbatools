@@ -1,11 +1,11 @@
-﻿#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
+#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
 function Get-DbaXEObject {
-<#
+    <#
     .SYNOPSIS
-        Gets a list of trace(s) from specified SQL Server instance(s).
+        Gets a list of extended events objects exposed by event packages from specified SQL Server instance(s).
 
     .DESCRIPTION
-        This function returns a list of Traces on the specified SQL Server instance(s) and identifies the default Trace File
+        This function returns a list of extended events objects exposed by event packages from specified SQL Server instance(s).
 
     .PARAMETER SqlInstance
         The target SQL Server instance or instances. You must have sysadmin access and server version must be SQL Server version 2008 or higher.
@@ -96,18 +96,18 @@ function Get-DbaXEObject {
 
             try {
                 $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $SqlCredential -MinimumVersion 9
-            }
-            catch {
+            } catch {
                 Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
                 return
             }
 
             try {
                 $server.Query($sql) | Select-DefaultView -ExcludeProperty ComputerName, InstanceName, ObjectTypeRaw
-            }
-            catch {
+            } catch {
                 Stop-Function -Message "Issue collecting trace data on $server." -Target $server -ErrorRecord $_
             }
         }
     }
 }
+
+

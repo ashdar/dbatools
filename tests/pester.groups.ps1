@@ -19,11 +19,16 @@ $TestsRunGroups = @{
         'Reset-DbaAdmin'
     )
     # do not run on appveyor
-    # a bug in SMO prevents availability group scripting :(
-    "appveyor_disabled"               = @(
+    "appveyor_disabled" = @(
+        # a bug in SMO prevents availability group scripting :(
         'Export-DbaAvailabilityGroup',
         'Get-DbaCpuRingBuffer',
-        'Get-DbaLatchStatistic'
+        'Get-DbaLatchStatistic',
+        # these work but fail too often on appveyor
+        'Remove-DbaAvailabilityGroup',
+        'Remove-DbaAgDatabase',
+        'New-DbaAvailabilityGroup',
+        'Export-DbaDacPackage'
     )
     # do not run everywhere
     "disabled"                  = @()

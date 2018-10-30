@@ -1,5 +1,6 @@
-﻿function Backup-DbaDbCertificate {
-<#
+#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
+function Backup-DbaDbCertificate {
+    <#
     .SYNOPSIS
         Exports database certificates from SQL Server using SMO.
 
@@ -34,7 +35,7 @@
         The suffix of the filename of the exported certificate.
 
     .PARAMETER InputObject
-        Certificate object
+        Enables piping from Get-DbaDbCertificate
 
     .PARAMETER Confirm
         If this switch is enabled, you will be prompted for confirmation before executing any operations that change state.
@@ -109,7 +110,7 @@
         Exports all certificates found on sql2016 to the default data directory.
 
 #>
-    [CmdletBinding(DefaultParameterSetName = "Default", SupportsShouldProcess = $true)]
+    [CmdletBinding(DefaultParameterSetName = "Default", SupportsShouldProcess, ConfirmImpact = 'Low')]
     param (
         [parameter(Mandatory, ParameterSetName = "instance")]
         [Alias("ServerInstance", "SqlServer")]
@@ -134,9 +135,8 @@
     )
 
     begin {
-
-        if ($EncryptionPassword.Length -eq 0 -and $DecryptionPassword.Length -gt 0) {
-            Stop-Function -Message "If you specify an decryption password, you must also specify an encryption password" -Target $DecryptionPassword
+        if (-not $EncryptionPassword -and $DecryptionPassword) {
+            Stop-Function -Message "If you specify a decryption password, you must also specify an encryption password" -Target $DecryptionPassword
         }
 
         Test-DbaDeprecation -DeprecatedOn "1.0.0" -Alias Backup-DbaDatabaseCertificate
@@ -177,8 +177,7 @@
                             [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($EncryptionPassword)),
                             [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($DecryptionPassword))
                         )
-                    }
-                    elseif ($EncryptionPassword.Length -gt 0 -and $DecryptionPassword.Length -eq 0) {
+                    } elseif ($EncryptionPassword.Length -gt 0 -and $DecryptionPassword.Length -eq 0) {
                         Write-Message -Level Verbose -Message "Only encryption password passed in. Will export both cer and pvk."
 
                         $cert.export(
@@ -186,8 +185,7 @@
                             $exportPathKey,
                             [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($EncryptionPassword))
                         )
-                    }
-                    else {
+                    } else {
                         Write-Message -Level Verbose -Message "No passwords passed in. Will export just cer."
                         $exportPathKey = "Password required to export key"
                         $cert.export($exportPathCert)
@@ -207,14 +205,12 @@
                         exportPathKey  = $exportPathKey
                         Status         = "Success"
                     } | Select-DefaultView -ExcludeProperty exportPathCert, exportPathKey, ExportPath, ExportKey
-                }
-                catch {
+                } catch {
 
                     if ($_.Exception.InnerException) {
                         $exception = $_.Exception.InnerException.ToString() -Split "System.Data.SqlClient.SqlException: "
                         $exception = ($exception[1] -Split "at Microsoft.SqlServer.Management.Common.ConnectionManager")[0]
-                    }
-                    else {
+                    } else {
                         $exception = $_.Exception
                     }
                     [pscustomobject]@{
@@ -239,45 +235,18 @@
 
     process {
         if (Test-FunctionInterrupt) { return }
-        foreach ($instance in $SqlInstance) {
-            try {
-                $server = Connect-SqlInstance -SqlInstance $instance -SqlCredential $SqlCredential
-            }
-            catch {
-                Stop-Function -Message "Failure" -Category ConnectionError -ErrorRecord $_ -Target $instance -Continue
-                return
-            }
-            $databases = Get-DbaDatabase -SqlInstance $server | Where-Object IsAccessible
 
-            if ($Database) {
-                $databases = $databases | Where-Object Name -in $Database
-            }
-            if ($ExcludeDatabase) {
-                $databases = $databases | Where-Object Name -NotIn $ExcludeDatabase
-            }
-            foreach ($db in $databases.Name) {
-                $DBInputObject = Get-DbaDbCertificate -SqlInstance $server -Database $db
-                if ($Certificate) {
-                    $InputObject += $DBInputObject | Where-Object Name -In $Certificate
-                }
-                else {
-                    $InputObject += $DBInputObject | Where-Object Name -NotLike "##*"
-                }
-                if (!$InputObject) {
-                    Write-Message -Level Output -Message "No certificates found to export in $db."
-                    continue
-                }
-            }
-
+        if ($SqlInstance) {
+            $InputObject += Get-DbaDbCertificate -SqlInstance $SqlInstance -SqlCredential $SqlCredential -Database $Database -ExcludeDatabase $ExcludeDatabase
         }
 
         foreach ($cert in $InputObject) {
             if ($cert.Name.StartsWith("##")) {
                 Write-Message -Level Output -Message "Skipping system cert $cert"
-            }
-            else {
+            } else {
                 export-cert $cert
             }
         }
     }
 }
+

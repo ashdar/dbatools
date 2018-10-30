@@ -1,5 +1,6 @@
-﻿function Backup-DbaDbMasterKey {
-<#
+#ValidationTags#Messaging,FlowControl,Pipeline,CodeStyle#
+function Backup-DbaDbMasterKey {
+    <#
     .SYNOPSIS
         Backs up specified database master key.
 
@@ -70,8 +71,6 @@
 #>
     [CmdletBinding(SupportsShouldProcess, ConfirmImpact = 'Low')]
     param (
-        [parameter(Mandatory, ValueFromPipeline)]
-        [Alias("ServerInstance", "SqlServer")]
         [DbaInstanceParameter[]]$SqlInstance,
         [PSCredential]$SqlCredential,
         [PSCredential]$Credential,
@@ -79,8 +78,8 @@
         [string[]]$ExcludeDatabase,
         [Security.SecureString]$Password,
         [string]$Path,
+        [parameter(ValueFromPipeline)]
         [Microsoft.SqlServer.Management.Smo.Database[]]$InputObject,
-        [Alias('Silent')]
         [switch]$EnableException
     )
     begin {
@@ -95,11 +94,12 @@
 
         foreach ($db in $InputObject) {
             $server = $db.Parent
+
             if (Test-Bound -ParameterName Path -Not) {
                 $Path = $server.BackupDirectory
             }
 
-            if (!$Path) {
+            if (-not $Path) {
                 Stop-Function -Message "Path discovery failed. Please explicitly specify -Path" -Target $server -Continue
             }
 
@@ -139,8 +139,7 @@
                 try {
                     $masterkey.Export($filename, [System.Runtime.InteropServices.marshal]::PtrToStringAuto([System.Runtime.InteropServices.marshal]::SecureStringToBSTR($password)))
                     $status = "Success"
-                }
-                catch {
+                } catch {
                     $status = "Failure"
                     Write-Message -Level Warning -Message "Backup failure: $($_.Exception.InnerException)"
                 }
@@ -160,3 +159,4 @@
         Test-DbaDeprecation -DeprecatedOn "1.0.0" -EnableException:$false -Alias Backup-DbaDatabaseMasterKey
     }
 }
+
