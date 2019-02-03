@@ -4,15 +4,11 @@ Write-Host -Object "Running $PSCommandPath" -ForegroundColor Cyan
 
 Describe "$CommandName Unit Tests" -Tag 'UnitTests' {
     Context "Validate parameters" {
-        $paramCount = 2
-        $defaultParamCount = 11
-        [object[]]$params = (Get-ChildItem function:\Invoke-DbatoolsFormatter).Parameters.Keys
-        $knownParameters = 'Path','EnableException'
-        It "Should contain our specific parameters" {
-            ( (Compare-Object -ReferenceObject $knownParameters -DifferenceObject $params -IncludeEqual | Where-Object SideIndicator -eq "==").Count ) | Should Be $paramCount
-        }
-        It "Should only contain $paramCount parameters" {
-            $params.Count - $defaultParamCount | Should -Be $paramCount
+        [object[]]$params = (Get-Command $CommandName).Parameters.Keys | Where-Object {$_ -notin ('whatif', 'confirm')}
+        [object[]]$knownParameters = 'Path','EnableException'
+        $knownParameters += [System.Management.Automation.PSCmdlet]::CommonParameters
+        It "Should only contain our specific parameters" {
+            (@(Compare-Object -ReferenceObject ($knownParameters | Where-Object {$_}) -DifferenceObject $params).Count ) | Should Be 0
         }
     }
 }
@@ -43,19 +39,20 @@ function Get-DbaStub {
 
         .DESCRIPTION
             Using
-#>
+    #>
     process {
         Write-Message -Level Verbose "stub"
     }
 }
-
 '@
 
     Context "formatting actually works" {
         $temppath = Join-Path $TestDrive 'somefile.ps1'
-        Set-Content -Value $content -Path $temppath
+        ## Set-Content adds a newline...WriteAllText() doesn't
+        #Set-Content -Value $content -Path $temppath
+        [System.IO.File]::WriteAllText($temppath, $content)
         Invoke-DbatoolsFormatter -Path $temppath
-        $newcontent = Get-Content -Path $temppath | Out-String
+        $newcontent = [System.IO.File]::ReadAllText($temppath)
         <#
         write-host -fore cyan "w $($wantedContent | convertto-json)"
         write-host -fore cyan "n $($newcontent | convertto-json)"
